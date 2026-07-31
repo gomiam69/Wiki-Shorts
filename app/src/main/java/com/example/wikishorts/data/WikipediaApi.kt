@@ -95,7 +95,19 @@ class WikipediaApi(
         val title = json.optString("title").ifBlank { json.optString("displaytitle") }
         if (title.isBlank()) return null
 
-        val thumbnail = json.optJSONObject("thumbnail")?.optString("source")
+        // Prefer the page's main ("original") lead image — it's the actual picture shown
+        // on the Wikipedia article itself. BUT: for flags, maps, logos, and coats of arms,
+        // Wikipedia's "original" is often a raw .svg file straight from Commons, and the
+        // thumbnail is always a safe pre-rasterized PNG/JPEG. So: use the original only when
+        // it's not an .svg, otherwise fall back to the thumbnail (still decodable even with
+        // the SVG decoder installed, this keeps the common case fast and reliable).
+        val originalImage = json.optJSONObject("originalimage")?.optString("source")?.ifBlank { null }
+        val thumbnail = json.optJSONObject("thumbnail")?.optString("source")?.ifBlank { null }
+        val mainImage = when {
+            originalImage != null && !originalImage.endsWith(".svg", ignoreCase = true) -> originalImage
+            thumbnail != null -> thumbnail
+            else -> originalImage
+        }
         val description = json.optString("description").ifBlank { null }
         val pageId = json.optLong("pageid", -1L)
 
@@ -110,7 +122,7 @@ class WikipediaApi(
             title = title,
             description = description,
             extract = extract,
-            thumbnailUrl = thumbnail,
+            thumbnailUrl = mainImage,
             pageUrl = pageUrl
         )
     }

@@ -86,7 +86,7 @@ private fun FavoriteRow(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (article.thumbnailUrl != null) {
+        if (!article.thumbnailUrl.isNullOrBlank()) {
             AsyncImage(
                 model = article.thumbnailUrl,
                 contentDescription = article.title,

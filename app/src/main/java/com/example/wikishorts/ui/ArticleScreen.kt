@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -42,6 +43,18 @@ fun ArticleScreen(
     onBack: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
+    // Keep a handle to the live WebView so system/gesture back can navigate
+    // its in-page history (e.g. after tapping a wiki link) before closing the reader.
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    BackHandler(enabled = true) {
+        val webView = webViewRef
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            onBack()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -74,7 +87,8 @@ fun ArticleScreen(
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             WikipediaWebView(
                 url = article.pageUrl,
-                onLoadingChanged = { isLoading = it }
+                onLoadingChanged = { isLoading = it },
+                onWebViewReady = { webViewRef = it }
             )
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -87,7 +101,8 @@ fun ArticleScreen(
 @Composable
 private fun WikipediaWebView(
     url: String,
-    onLoadingChanged: (Boolean) -> Unit
+    onLoadingChanged: (Boolean) -> Unit,
+    onWebViewReady: (WebView) -> Unit
 ) {
     AndroidView(
         modifier = Modifier.fillMaxSize(),
@@ -115,6 +130,7 @@ private fun WikipediaWebView(
                     }
                 }
                 loadUrl(url)
+                onWebViewReady(this)
             }
         },
         update = { webView ->

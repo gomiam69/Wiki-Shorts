@@ -35,10 +35,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.wikishorts.model.WikiArticle
 import com.example.wikishorts.viewmodel.FeedViewModel
 
@@ -52,7 +54,7 @@ fun FeedScreen(
     val uiState by viewModel.uiState.collectAsState()
     val favorites by viewModel.favoritesStore.favorites.collectAsState()
 
-    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         when {
             uiState.isInitialLoading -> LoadingState()
             uiState.articles.isEmpty() -> ErrorState(
@@ -95,22 +97,36 @@ private fun ArticleCard(
             .fillMaxSize()
             .clickable(onClick = onOpen)
     ) {
-        if (article.thumbnailUrl != null) {
+        // Base layer: always visible, so a slow/failed image load never leaves blank space.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFF283048), Color(0xFF859398))
+                    )
+                )
+        )
+
+        if (!article.thumbnailUrl.isNullOrBlank()) {
             AsyncImage(
-                model = article.thumbnailUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(article.thumbnailUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = article.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF283048), Color(0xFF859398))
-                        )
+                modifier = Modifier.fillMaxSize(),
+                onError = { state ->
+                    android.util.Log.e(
+                        "WikiShorts",
+                        "Image failed for '${article.title}' url=${article.thumbnailUrl}",
+                        state.result.throwable
                     )
+                },
+                onSuccess = {
+                    android.util.Log.d("WikiShorts", "Image loaded for '${article.title}'")
+                }
             )
         }
 
